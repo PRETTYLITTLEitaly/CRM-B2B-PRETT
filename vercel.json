@@ -17,8 +17,17 @@
       "destination": "server/index.js"
     },
     {
-      "source": "/(.*)",
-      "destination": "client/$1"
+      "source": "/((?!api/).*)",
+      "destination": "/client/$1"
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "client/index.html"
     }
   ]
 }

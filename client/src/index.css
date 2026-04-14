@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #f8fafc; /* slate-50 */
+  --bg-secondary: #ffffff;
+  --text-primary: #0f172a; /* slate-900 */
+  --text-secondary: #64748b; /* slate-500 */
+  --accent: #6366f1; /* indigo-500 */
+  --border: #e2e8f0; /* slate-200 */
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased font-sans transition-colors duration-300;
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+@layer components {
+  .sidebar-link {
+    @apply flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 font-bold uppercase text-[10px] tracking-widest;
+  }
+  
+  .sidebar-link-active {
+    @apply bg-indigo-600 text-white shadow-lg shadow-indigo-200;
+  }
+  
+  .sidebar-link-inactive {
+    @apply text-slate-400 hover:text-slate-900 hover:bg-slate-100;
+  }
+
+  .card {
+    @apply bg-white border border-slate-100 rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-indigo-100/50 transition-all duration-500;
+  }
+
+  .btn-primary {
+    @apply bg-slate-900 text-white px-8 py-4 rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:scale-105 active:scale-95 transition-all shadow-xl;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-slate-200 text-slate-900 px-8 py-4 rounded-3xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Leaflet Customization for Light Theme */
+.leaflet-container {
+  @apply rounded-[2.5rem] border border-slate-200 !bg-slate-100 shadow-inner;
+}

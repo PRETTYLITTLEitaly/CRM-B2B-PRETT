@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum LeadStatus {
+  NUOVO
+  CONTATTATO
+  TRATTATIVA
+  CHIUSO
+}
+
+enum CustomerStatus {
+  ATTIVO
+  INATTIVO
+  POTENZIALE
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  storeName    String     @map("store_name")
+  contactName  String?    @map("contact_name")
+  phone        String?
+  email        String?    @unique
+  city         String?
+  source       String?
+  status       LeadStatus @default(NUOVO)
+  notes        String?
+  lastSyncAt   DateTime   @default(now()) @map("last_sync_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  customer     Customer?
+}
+
+model Customer {
+  id               String         @id @default(uuid())
+  businessName     String         @map("business_name")
+  contactName      String?        @map("contact_name")
+  phone            String?        @unique
+  email            String?        @unique
+  city             String
+  region           String
+  address          String?
+  tags             String[]
+  status           CustomerStatus @default(POTENZIALE)
+  notes            String?
+  manualLatitude   Float?         @map("manual_latitude")
+  manualLongitude  Float?         @map("manual_longitude")
+  
+  leadId           String?        @unique @map("lead_id")
+  lead             Lead?          @relation(fields: [leadId], references: [id])
+  
+  orders           Order[]
+  invoices         Invoice[]
+  
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+}
+
+model Order {
+  id                String      @id // Shopify Order ID
+  orderNumber       String      @map("order_number")
+  date              DateTime    @map("order_date")
+  totalAmount       Float       @map("total_amount")
+  currency          String      @default("EUR")
+  paymentStatus     String?     @map("payment_status")
+  fulfillmentStatus String?     @map("fulfillment_status")
+  productsJson      Json?       @map("products_json")
+  
+  customerId        String      @map("customer_id")
+  customer          Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  invoiceNumber String    @unique @map("invoice_number")
+  invoiceDate   DateTime  @map("invoice_date")
+  dueDate       DateTime? @map("due_date")
+  totalAmount   Float     @map("total_amount")
+  paymentStatus String    @default("PENDENTE") @map("payment_status")
+  paymentDate   DateTime? @map("payment_date")
+  notes         String?
+  
+  customerId    String    @map("customer_id")
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now()) @map("created_at")
+}
+
+model ProspectFinder {
+  id           String   @id @default(uuid())
+  businessName String   @map("business_name")
+  city         String
+  region       String?
+  phone        String?
+  email        String?
+  website      String?
+  instagram    String?
+  source       String?
+  status       String   @default("POTENZIALE")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+}
+
+model SyncLog {
+  id        String   @id @default(uuid())
+  type      String   // "GOOGLE_SHEETS" or "SHOPIFY"
+  status    String
+  message   String?
+  timestamp DateTime @default(now())
+}

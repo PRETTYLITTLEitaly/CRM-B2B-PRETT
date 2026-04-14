@@ -1,0 +1,13 @@
+node_modules
+.env
+.DS_Store
+dist
+*.log
+.vercel
+package-lock.json
+client/node_modules
+server/node_modules
+server/.env
+client/dist
+.vscode
+.idea

@@ -50,15 +50,19 @@ async function fetchWithHighResilience(url, token) {
     for (const item of items) {
       try {
         const orderId = item.id.toString();
+        const isDraft = !item.order_number && item.name?.startsWith('#D');
         const orderNum = (item.order_number || item.name || `DRAFT-${item.id}`).toString().replace(/^#/, '');
         
+        // Per le bozze, forziamo uno stato che le renda visibili
+        const shopifyPayStatus = item.financial_status || (isDraft ? 'draft' : 'unknown');
+        const internalPayStatus = (shopifyPayStatus === 'paid') ? 'SALDATO' : 'IN_ATTESA';
+
         let customerId = null;
         try {
-          // Proviamo a convertire/trovare il cliente
           const customer = await conversionService.handleShopifyOrder(item);
           customerId = customer.id;
         } catch (e) {
-          console.log(`[SHOPIFY] Ordine ${orderNum} senza cliente valido, lo carico comunque.`);
+          console.log(`[SHOPIFY] Ordine ${orderNum} senza cliente valido.`);
         }
 
         const totalItems = (item.line_items || []).reduce((sum, li) => sum + (li.quantity || 0), 0);
@@ -69,11 +73,12 @@ async function fetchWithHighResilience(url, token) {
           update: {
             totalAmount: parseFloat(item.total_price || item.total_price_set?.shop_money?.amount || 0),
             date: new Date(item.created_at),
-            shopifyPaymentStatus: item.financial_status,
+            shopifyPaymentStatus: shopifyPayStatus,
             fulfillmentStatus: shopifyStatus,
             itemsCount: totalItems,
             productsJson: item.line_items,
             discountsJson: (item.discount_codes && item.discount_codes.length > 0) ? item.discount_codes : ((item.discount_applications && item.discount_applications.length > 0) ? item.discount_applications : []),
+            paymentStatus: internalPayStatus
           },
           create: {
             id: orderId,
@@ -82,13 +87,12 @@ async function fetchWithHighResilience(url, token) {
             totalAmount: parseFloat(item.total_price || item.total_price_set?.shop_money?.amount || 0),
             currency: item.currency || 'EUR',
             customerId: customerId,
-            shopifyPaymentStatus: item.financial_status,
+            shopifyPaymentStatus: shopifyPayStatus,
             fulfillmentStatus: shopifyStatus,
             itemsCount: totalItems,
             productsJson: item.line_items,
             discountsJson: (item.discount_codes && item.discount_codes.length > 0) ? item.discount_codes : ((item.discount_applications && item.discount_applications.length > 0) ? item.discount_applications : []),
-            // Pre-impostiamo lo stato interno basandoci su Shopify al primo sync
-            paymentStatus: item.financial_status === 'paid' ? 'SALDATO' : 'IN_ATTESA',
+            paymentStatus: internalPayStatus,
           },
         });
         savedCount++;

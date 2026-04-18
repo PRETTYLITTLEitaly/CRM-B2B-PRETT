@@ -11,6 +11,7 @@ const customerRoutes = require('./customer.routes');
 const alertRoutes = require('./alert.routes');
 const authRoutes = require('./auth.routes');
 const searchRoutes = require('./search.routes');
+const aiRoutes = require('./ai.routes');
 
 router.use('/auth', authRoutes);
 router.use('/search', searchRoutes);
@@ -23,5 +24,6 @@ router.use('/maps', mapRoutes);
 router.use('/find-clients', prospectRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/alerts', alertRoutes);
+router.use('/ai', aiRoutes);
 
 module.exports = router;

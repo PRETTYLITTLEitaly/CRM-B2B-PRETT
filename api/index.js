@@ -240,7 +240,7 @@ cod.ide. 5RUO820";no
             await prisma.customer.createMany({ data: toCreate, skipDuplicates: true });
         }
 
-        res.send(`IMPORTAZIONE INLINED COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
+        res.send(`VERSION 3.0 - IMPORTAZIONE INLINED COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
     } catch (e) {
         res.status(500).send("ERROR: " + e.message + "\nSTACK: " + e.stack);
     }

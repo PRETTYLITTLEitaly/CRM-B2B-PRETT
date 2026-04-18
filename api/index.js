@@ -32,8 +32,13 @@ async function runFullSync() {
 
     let created = 0;
     for (const sc of shopifyCustomers) {
-        const email = sc.email?.toLowerCase().trim();
-        const phone = sc.phone || sc.default_address?.phone;
+        const email = sc.email?.toLowerCase().trim() || null;
+        
+        // NORMALIZZAZIONE TELEFONO
+        let rawPhone = sc.phone || sc.default_address?.phone;
+        let phone = rawPhone ? rawPhone.replace(/[^0-9+]/g, '') : null;
+        if (phone === '') phone = null;
+
         if ((email && existingEmails.has(email)) || (phone && existingPhones.has(phone))) continue;
 
         await prisma.customer.create({
@@ -49,7 +54,6 @@ async function runFullSync() {
             }
         });
         
-        // AGGIORNA I SET LOCALI per evitare duplicati nello stesso loop
         if (email) existingEmails.add(email);
         if (phone) existingPhones.add(phone);
         

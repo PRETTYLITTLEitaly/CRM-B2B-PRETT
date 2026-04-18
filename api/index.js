@@ -239,7 +239,7 @@ cod.ide. 5RUO820";no
 
         res.send(`IMPORTAZIONE INLINED COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
     } catch (e) {
-        res.status(500).send("ERROR: " + e.message);
+        res.status(500).send("ERROR: " + e.message + "\nSTACK: " + e.stack);
     }
 });
 

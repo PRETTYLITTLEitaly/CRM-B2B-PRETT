@@ -16,7 +16,7 @@ app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
 app.get('/api/test', (req, res) => res.send('ROUTER TEST OK'));
 
 // GENERATE REPORT ON REFRESH
-app.get('/api/diag/analysis-v2', async (req, res) => {
+app.get('/api/check', async (req, res) => {
     try {
         const { PrismaClient } = require('@prisma/client');
         const prisma = new PrismaClient();

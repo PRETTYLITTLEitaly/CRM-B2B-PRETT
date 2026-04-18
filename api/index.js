@@ -10,10 +10,17 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// Mantengo la struttura originale che permette il login
+// Logging per debug - ci permetterà di vedere cosa accade su Vercel
+app.use((req, res, next) => {
+    console.log(`[REQUEST] ${req.method} ${req.url}`);
+    next();
+});
+
+// Supportiamo entrambi i percorsi per massima compatibilità con i rewrites di Vercel
+app.use('/api', mainRouter);
 app.use('/', mainRouter);
 
-// Aggiungo l'importazione in fondo per non interferire con il login
+// Importazione diagnostica (rimane separata)
 app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
         const { importData } = require('./import_data');
@@ -21,6 +28,15 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
     } catch (e) {
         res.status(500).send("ERROR: " + e.message);
     }
+});
+
+// Catch-all per debug
+app.use((req, res) => {
+    res.status(404).send({
+        error: "Route not found",
+        receivedUrl: req.url,
+        method: req.method
+    });
 });
 
 const PORT = process.env.PORT || 3001;

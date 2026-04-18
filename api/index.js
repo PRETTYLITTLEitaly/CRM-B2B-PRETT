@@ -64,7 +64,12 @@ async function runFullSync() {
     const { syncOrders } = require('../backend_core/src/services/shopify.service');
     const orderResult = await syncOrders();
 
-    return { success: true, newCustomers: created, syncedOrders: orderResult.count };
+    return { 
+        success: true, 
+        newCustomers: created, 
+        syncedOrdersAndDrafts: orderResult.count,
+        details: `Importazione completata: ${created} nuovi clienti aggiunti. Sincronizzati ${orderResult.count} tra ordini reali e bozze aperte.`
+    };
 }
 
 app.get('/api/diag/sync-full', async (req, res) => {

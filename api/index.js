@@ -15,13 +15,14 @@ const prisma = new PrismaClient();
 app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
 app.get('/api/test', (req, res) => res.send('ROUTER TEST OK'));
 
-// IMPORT FROM CSV (LOGICA SEPARATA)
-app.get('/api/diag/import-from-csv', async (req, res) => {
+// RECONCILIATION AUTOMATICA (Clienti, Ordini, Bozze)
+app.get('/api/diag/sync-full', async (req, res) => {
     try {
-        const { importData } = require('./import_data');
-        await importData(prisma, res);
+        const { fullReconciliation } = require('../backend_core/src/services/reconciliation.service');
+        const result = await fullReconciliation();
+        res.json(result);
     } catch (e) {
-        res.status(500).send("ERROR: " + e.message);
+        res.status(500).send("ERROR RECONCILIATION: " + e.message);
     }
 });
 

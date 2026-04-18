@@ -23,10 +23,7 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
         const content = fs.readFileSync(csvPath, 'utf8');
         const lines = content.split(/\r?\n(?=')/);
         
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-        
-        // Load all existing for fast lookup
+        // Load all existing for fast lookup using GLOBAL prisma
         const crmCustomers = await prisma.customer.findMany({ select: { email: true, phone: true } });
         const existingEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
         const existingPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
@@ -54,12 +51,11 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
 
             toCreate.push({
                 firstName, lastName, businessName, email, phone, city,
-                region: '', // Required by schema
+                region: '', // Required
                 status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
                 source: 'SHOPIFY_IMPORT'
             });
             
-            // Mark as existing for this loop
             if (email) existingEmails.add(email);
             if (phone) existingPhones.add(phone);
         }
@@ -69,7 +65,6 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
         }
 
         res.send(`IMPORTAZIONE BULK COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
-        await prisma.$disconnect();
     } catch (e) {
         res.status(500).send("ERROR: " + e.message);
     }

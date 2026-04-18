@@ -11,3 +11,6 @@ server/.env
 client/dist
 .vscode
 .idea
+.npm-cache
+scratch
+*.icloud

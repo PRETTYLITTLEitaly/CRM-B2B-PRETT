@@ -1,139 +1,201 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
+  Search, 
+  Filter, 
   ShoppingCart, 
-  ExternalLink, 
-  Package, 
-  CircleDot, 
-  CheckCircle2, 
-  Clock,
-  Search,
-  Filter
+  RefreshCw, 
+  ChevronRight
 } from 'lucide-react';
-
-const orders = [
-  { id: '#1052', customer: 'Tech Gadgets Hub', date: '2 ore fa', items: 3, total: '€450.00', status: 'In elaborazione', type: 'Shopify' },
-  { id: '#1051', customer: 'Fashion Boutique', date: '5 ore fa', items: 1, total: '€1,200.00', status: 'Spedito', type: 'Shopify' },
-  { id: '#1050', customer: 'Lombardi Vini', date: 'Ieri', items: 12, total: '€2,450.00', status: 'Consegnato', type: 'Manuale' },
-  { id: '#1049', customer: 'Bio Store XL', date: '2 giorni fa', items: 5, total: '€320.00', status: 'Cancellato', type: 'Shopify' },
-];
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    'In elaborazione': 'bg-accent/10 text-accent border-accent/20',
-    'Spedito': 'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-    'Consegnato': 'bg-success/10 text-success border-success/20',
-    'Cancellato': 'bg-danger/10 text-danger border-danger/20',
-  };
-  
-  return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${styles[status]}`}>
-      {status}
-    </span>
-  );
-};
+import OrderDrawer from '../components/OrderDrawer';
+import SegmentBadge from '../components/SegmentBadge';
 
 const Orders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const getCustomerTotal = (customerId) => {
+    if (!customerId) return 0;
+    return orders.filter(o => o.customerId === customerId).reduce((s, o) => s + parseFloat(o.totalAmount || 0), 0);
+  };
+
+  const fetchOrders = async (sync = false) => {
+    try {
+      setLoading(true);
+      const url = sync ? '/api/shopify/sync' : '/api/orders';
+      const response = await fetch(url);
+      const result = await response.json();
+      
+      const actualOrders = result.data || result;
+      
+      if (sync) {
+        const dbResponse = await fetch('/api/orders');
+        const dbResult = await dbResponse.json();
+        setOrders(dbResult.data || []);
+      } else {
+        setOrders(Array.isArray(actualOrders) ? actualOrders : []);
+      }
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <header className="flex justify-between items-end">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      
+      {/* Search & Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm relative z-10">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-text-main">Gestione Ordini</h2>
-          <p className="text-text-dim mt-1">Sincronizzazione in tempo reale con Shopify Admin API.</p>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase leading-none">
+            Registro <span className="text-indigo-600">Ordini.</span>
+          </h1>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{orders.length} Transazioni sincronizzate</p>
         </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-lg border border-border hover:bg-white/5 transition-colors flex items-center gap-2">
-            <Filter size={18} />
-            Filtri Avanzati
-          </button>
-          <button className="btn-primary flex items-center gap-2">
-            Sincronizza Shopify
+        <div className="flex gap-4">
+          <button 
+            onClick={() => fetchOrders(true)} 
+            disabled={loading}
+            className={`px-8 py-4 bg-slate-900 text-white rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-100 hover:bg-black transition-all active:scale-95 flex items-center gap-3 ${loading ? 'opacity-50' : ''}`}
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizza Shopify
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card border-l-4 border-l-accent flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-accent/10 text-accent">
-            <Clock size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">In Sospeso</p>
-            <h4 className="text-xl font-bold">14 Ordini</h4>
-          </div>
+        <div className="p-8 bg-indigo-600 text-white rounded-[2.5rem] shadow-2xl shadow-indigo-100 flex flex-col gap-1 relative overflow-hidden group">
+          <ShoppingCart className="absolute -right-4 -bottom-4 w-24 h-24 opacity-10 group-hover:scale-110 transition-transform duration-500" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Totale Ordini</p>
+          <h3 className="text-4xl font-black italic tracking-tighter">{orders.length}</h3>
         </div>
-        <div className="card border-l-4 border-l-success flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-success/10 text-success">
-            <Package size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">Da Spedire oggi</p>
-            <h4 className="text-xl font-bold">5 Ordini</h4>
-          </div>
+        <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] flex flex-col gap-1">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">In Sospeso</p>
+          <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter">
+            {orders.filter(o => o.fulfillmentStatus !== 'fulfilled').length}
+          </h3>
         </div>
-        <div className="card border-l-4 border-l-indigo-400 flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-indigo-400/10 text-indigo-400">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">Completati (30gg)</p>
-            <h4 className="text-xl font-bold">128 Ordini</h4>
-          </div>
+        <div className="p-8 bg-white border border-slate-100 rounded-[2.5rem] flex flex-col gap-1">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Faturato Today</p>
+          <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter">
+            €{orders.filter(o => new Date(o.date).toDateString() === new Date().toDateString()).reduce((s,o) => s + o.totalAmount, 0).toLocaleString()}
+          </h3>
         </div>
       </div>
 
-      <div className="card !p-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex justify-between items-center bg-white/5">
-           <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={16} />
-              <input type="text" placeholder="Cerca ordine..." className="w-full bg-bg-primary border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:outline-none" />
-           </div>
-           <div className="flex gap-2">
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg bg-accent text-white">Tutti</button>
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-white/5 text-text-dim transition-colors">Shopify</button>
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-white/5 text-text-dim transition-colors">Manuali</button>
-           </div>
-        </div>
-        <table className="w-full text-left">
-          <thead className="text-[10px] uppercase text-text-dim font-bold tracking-wider">
-            <tr>
-              <th className="px-6 py-4">Ordine</th>
-              <th className="px-6 py-4">Cliente</th>
-              <th className="px-6 py-4">Data</th>
-              <th className="px-6 py-4">Prodotti</th>
-              <th className="px-6 py-4">Totale</th>
-              <th className="px-6 py-4">Stato</th>
-              <th className="px-6 py-4 text-right">Shopify</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {orders.map((order) => (
-              <tr key={order.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4 font-bold text-text-main">{order.id}</td>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium">{order.customer}</div>
-                </td>
-                <td className="px-6 py-4 text-xs text-text-dim">{order.date}</td>
-                <td className="px-6 py-4">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <Package size={12} className="text-text-dim" /> {order.items} SKU
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-bold text-sm text-text-main">{order.total}</td>
-                <td className="px-6 py-4">
-                  <StatusBadge status={order.status} />
-                </td>
-                <td className="px-6 py-4 text-right">
-                  {order.type === 'Shopify' && (
-                    <button className="p-2 rounded-lg hover:bg-accent/10 text-text-dim hover:text-accent transition-colors">
-                      <ExternalLink size={16} />
-                    </button>
-                  )}
-                </td>
+      <div className="card overflow-hidden !p-0 rounded-[3rem] border-slate-100">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50/50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                <th className="px-10 py-6">Ordine / Data</th>
+                <th className="px-6 py-6">Cliente</th>
+                <th className="px-6 py-6 text-right">Totale</th>
+                <th className="px-6 py-6">Stato Pagamento</th>
+                <th className="px-6 py-6">Evasione</th>
+                <th className="px-6 py-6 border-l border-slate-50">Consegna</th>
+                <th className="px-6 py-6">Articoli</th>
+                <th className="px-10 py-6 text-center">Gestione</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {loading && orders.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-24 text-center">
+                    <RefreshCw className="w-10 h-10 animate-spin text-indigo-600 mx-auto opacity-20" />
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-24 text-center text-slate-300 font-black uppercase italic tracking-widest">
+                    Nessun ordine sincronizzato.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
+                  <tr 
+                    key={order.id} 
+                    className="hover:bg-indigo-50/30 transition-all group cursor-pointer"
+                    onClick={() => setSelectedOrder(order)}
+                  >
+                    <td className="px-10 py-7">
+                      <div className="flex flex-col">
+                        <span className="font-black text-slate-900 italic tracking-tighter text-base">#{order.orderNumber || order.shopifyOrderId}</span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{new Date(order.date).toLocaleDateString('it-IT')}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-7">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600 transition-all">
+                          {order.customer?.businessName || 'Cliente Shopify'}
+                          <SegmentBadge totalSpent={getCustomerTotal(order.customerId)} />
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">{order.customer?.email || 'Sync automatica'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-7 text-right">
+                      <span className="text-sm font-black text-slate-900 italic tracking-tighter">€{parseFloat(order.totalAmount).toLocaleString()}</span>
+                    </td>
+                    <td className="px-6 py-7">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight border ${
+                        order.paymentStatus === 'SALDATO' 
+                          ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                          : 'bg-amber-50 text-amber-600 border-amber-100'
+                      }`}>
+                        {order.paymentStatus === 'SALDATO' ? 'Saldato' : (order.paymentStatus || 'Pagamento in attesa')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-7">
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight border ${
+                        order.fulfillmentStatus === 'fulfilled'
+                          ? 'bg-slate-50 text-slate-400 border-slate-100'
+                          : order.fulfillmentStatus === 'partial'
+                          ? 'bg-blue-50 text-blue-600 border-blue-100'
+                          : 'bg-amber-50 text-amber-600 border-amber-100'
+                      }`}>
+                        {order.fulfillmentStatus === 'fulfilled' ? 'Evaso' : (order.fulfillmentStatus === 'partial' ? 'Parziale' : 'Inevaso')}
+                      </span>
+                    </td>
+                    <td className="px-6 py-7 border-l border-slate-50/50">
+                      {order.deliveryDate ? (
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">{new Date(order.deliveryDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}</span>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase">{new Date(order.deliveryDate).toLocaleDateString('it-IT', { year: '2-digit' })}</span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-black text-slate-300 uppercase italic">---</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-7">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{order.itemsCount || 0} articoli</span>
+                    </td>
+                    <td className="px-10 py-7 text-center">
+                      <button className="p-3 bg-white border border-slate-100 rounded-2xl text-slate-400 group-hover:text-indigo-600 group-hover:shadow-lg transition-all active:scale-95">
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {/* Widget Dettaglio Ordine */}
+      <OrderDrawer 
+        order={selectedOrder} 
+        isOpen={!!selectedOrder} 
+        onClose={() => setSelectedOrder(null)} 
+        onUpdate={() => fetchOrders()}
+      />
     </div>
   );
 };

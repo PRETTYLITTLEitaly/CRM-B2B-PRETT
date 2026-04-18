@@ -1,4 +1,5 @@
 const orderService = require('../services/order.service');
+const calendarService = require('../services/calendar.service');
 
 const getOrders = async (req, res, next) => {
   try {
@@ -29,6 +30,25 @@ const createOrder = async (req, res, next) => {
   }
 };
 
+const updateOrder = async (req, res, next) => {
+  try {
+    const data = { ...req.body };
+    if (data.deliveryDate) {
+      data.deliveryDate = new Date(data.deliveryDate);
+    }
+    const order = await orderService.update(req.params.id, data);
+
+    // Sync Google Calendar (background)
+    if (order.deliveryDate) {
+      calendarService.syncOrderToCalendar(order.id).catch(err => console.error('[SYNC CAL] Failed:', err));
+    }
+
+    res.json({ success: true, data: order });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getCustomerStats = async (req, res, next) => {
   try {
     const stats = await orderService.getStatsByCustomer(req.params.customerId);
@@ -42,5 +62,6 @@ module.exports = {
   getOrders,
   getOrderById,
   createOrder,
+  updateOrder,
   getCustomerStats,
 };

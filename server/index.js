@@ -17,12 +17,12 @@ app.use('/api', mainRouter);
 // Error Handling
 app.use(errorHandler);
 
-// Export for Vercel
-module.exports = app;
-
+// Per il deployment locale
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
         console.log(`🚀 B2B CRM Server running on port ${PORT}`);
-        console.log(`📡 API Health Check: http://localhost:${PORT}/api/leads`);
     });
 }
+
+// Esporta l'app per Vercel
+module.exports = app;

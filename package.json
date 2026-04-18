@@ -1,13 +1,27 @@
 {
-  "name": "prettyb2b",
+  "name": "prettyb2b-all-in-one",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Integrated CRM Platform",
   "scripts": {
+    "install-client": "cd client && npm install",
+    "build": "cd client && npm install && npm run build && cp -r dist ../public && cd .. && npx prisma generate --schema=./api/prisma/schema.prisma",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@shopify/shopify-api": "^11.0.0",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "googleapis": "^126.0.0",
+    "joi": "^17.9.2",
+    "node-cron": "^3.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "prisma": "^6.19.3"
+  }
 }

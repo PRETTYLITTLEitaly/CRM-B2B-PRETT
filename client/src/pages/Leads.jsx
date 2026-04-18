@@ -1,134 +1,150 @@
-import React, { useState } from 'react';
-import { 
-  Users, 
-  Search, 
-  Filter, 
-  Download,
-  MoreVertical,
-  Mail,
-  Phone,
-  ArrowUpDown
-} from 'lucide-react';
-
-const STATUS_COLORS = {
-  NEW: 'bg-accent/10 text-accent border-accent/20',
-  CONTACTED: 'bg-warning/10 text-warning border-warning/20',
-  NEGOTIATION: 'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-  CLOSED: 'bg-success/10 text-success border-success/20',
-};
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Plus, Mail, Phone, ExternalLink, RefreshCw } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 const Leads = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchParams] = useSearchParams();
+  const querySearch = searchParams.get('search') || '';
+  const [localSearch, setLocalSearch] = useState('');
 
-  // Mock Data (will be fetched from API later)
-  const leads = [
-    { id: '1', storeName: 'Tech Gadgets Hub', contactName: 'Mario Rossi', phone: '+39 333 1234567', email: 'mario@techhub.com', city: 'Milano', source: 'Google', status: 'NEW', createdAt: '2024-04-10' },
-    { id: '2', storeName: 'Fashion Boutique', contactName: 'Laura Bianchi', phone: '+39 347 9876543', email: 'laura@boutique.it', city: 'Roma', source: 'Instagram', status: 'CONTACTED', createdAt: '2024-04-09' },
-    { id: '3', storeName: 'Lombardi Vini', contactName: 'Giuseppe Lombardi', phone: '+39 338 1112233', email: 'info@lombardivini.com', city: 'Firenze', source: 'Referral', status: 'NEGOTIATION', createdAt: '2024-04-08' },
-    { id: '4', storeName: 'Bio Store XL', contactName: 'Anna Verde', phone: '+39 339 4445566', email: 'anna@biostore.com', city: 'Torino', source: 'Google Maps', status: 'CLOSED', createdAt: '2024-04-07' },
-  ];
+  const fetchLeads = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/leads');
+      const result = await response.json();
+      
+      const actualData = result.data || result;
+      
+      if (Array.isArray(actualData)) {
+        setLeads(actualData);
+      } else {
+        setLeads([]);
+        setError('Formato dati non valido');
+      }
+    } catch (err) {
+      setError('Impossibile connettersi al server');
+      setLeads([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  const filteredLeads = leads.filter(lead => {
+    const searchVal = (querySearch || localSearch).toLowerCase();
+    return (
+      (lead.companyName || lead.name || '').toLowerCase().includes(searchVal) ||
+      (lead.contactPerson || '').toLowerCase().includes(searchVal) ||
+      (lead.email || '').toLowerCase().includes(searchVal) ||
+      (lead.city || '').toLowerCase().includes(searchVal)
+    );
+  });
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-text-main">Gestione Lead</h2>
-          <p className="text-text-dim mt-1">Monitora e aggiorna i potenziali clienti acquisiti.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-lg border border-border hover:bg-white/5 transition-colors flex items-center gap-2">
-            <Download size={18} />
-            Esporta CSV
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase">
+          Leads <span className="text-indigo-600">Pipeline.</span>
+        </h1>
+        <div className="flex gap-4">
+          <button 
+            onClick={fetchLeads}
+            className="p-3 bg-white border border-slate-100 rounded-2xl text-slate-600 hover:text-indigo-600 transition-all"
+            title="Aggiorna Dati"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button className="btn-primary flex items-center gap-2">
-            Importa da Google Sheets
+            <Plus className="w-4 h-4" /> Importa Nuovi
           </button>
         </div>
-      </header>
-
-      {/* Filters & Search */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-2 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={18} />
+      </div>
+      <div className="card flex items-center gap-6 !p-6 bg-slate-50/50">
+        <div className="flex-1 relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
           <input 
             type="text" 
-            placeholder="Cerca per nome negozio, email o città..."
-            className="w-full bg-bg-secondary border border-border rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-accent transition-colors"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Filtra per nome o zona..." 
+            value={localSearch || querySearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="w-full bg-white border border-slate-100 rounded-2xl py-3 pl-12 pr-4 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-600/10 transition-all"
           />
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={18} />
-          <select className="w-full bg-bg-secondary border border-border rounded-xl py-2.5 pl-10 pr-4 appearance-none focus:outline-none focus:border-accent">
-            <option>Tutti gli stati</option>
-            <option>Nuovo</option>
-            <option>Contattato</option>
-            <option>Trattativa</option>
-            <option>Chiuso</option>
-          </select>
-        </div>
-        <div className="relative">
-          <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={18} />
-          <select className="w-full bg-bg-secondary border border-border rounded-xl py-2.5 pl-10 pr-4 appearance-none focus:outline-none focus:border-accent">
-            <option>Data decrescente</option>
-            <option>Data crescente</option>
-            <option>Nome A-Z</option>
-          </select>
-        </div>
+        <button className="p-3 bg-white border border-slate-100 rounded-2xl text-slate-600 hover:text-indigo-600 transition-all">
+          <Filter className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Leads Table */}
-      <div className="card overflow-hidden !p-0">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-white/5">
-              <th className="px-6 py-4 font-semibold text-sm">Negozio</th>
-              <th className="px-6 py-4 font-semibold text-sm">Città</th>
-              <th className="px-6 py-4 font-semibold text-sm">Contatti</th>
-              <th className="px-6 py-4 font-semibold text-sm">Stato</th>
-              <th className="px-6 py-4 font-semibold text-sm">Fonte</th>
-              <th className="px-6 py-4 font-semibold text-sm text-right">Azioni</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {leads.map((lead) => (
-              <tr key={lead.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-text-main">{lead.storeName}</div>
-                  <div className="text-xs text-text-dim">{lead.contactName}</div>
-                </td>
-                <td className="px-6 py-4 text-sm text-text-dim italic">
-                  {lead.city}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-xs text-text-dim hover:text-accent transition-colors cursor-pointer capitalize">
-                      <Mail size={12} /> {lead.email}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Caricamento in corso...</p>
+        </div>
+      ) : error ? (
+        <div className="card border-rose-100 bg-rose-50 text-rose-600 p-10 text-center">
+          <p className="font-black uppercase tracking-widest text-sm mb-2">Ops! Qualcosa è andato storto</p>
+          <p className="text-xs">{error}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {filteredLeads.length === 0 ? (
+            <div className="card py-20 text-center">
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Nessun lead trovato.</p>
+            </div>
+          ) : (
+            filteredLeads.map((lead, i) => (
+              <div key={lead.id || i} className="card group hover:scale-[1.01]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center text-2xl group-hover:bg-indigo-50 transition-colors">
+                      🏢
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-text-dim hover:text-accent transition-colors cursor-pointer">
-                      <Phone size={12} /> {lead.phone}
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 tracking-tight mb-1">{lead.companyName || lead.name}</h3>
+                      <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <span>{lead.contactPerson || 'Nessun contatto'}</span>
+                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                        <span>{lead.email || 'No email'}</span>
+                      </div>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${STATUS_COLORS[lead.status]}`}>
-                    {lead.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-text-dim">
-                  {lead.source}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button className="p-2 rounded-lg hover:bg-white/10 text-text-dim">
-                    <MoreVertical size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  
+                  <div className="flex items-center gap-12">
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        lead.status === 'NEW' ? 'bg-indigo-50 text-indigo-600' : 
+                        lead.status === 'CONTACTED' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+                      }`}>
+                        {lead.status || 'NEW'}
+                      </span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <a href={`mailto:${lead.email}`} className="p-3 bg-slate-50 rounded-2xl text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                        <Mail className="w-4 h-4" />
+                      </a>
+                      <a href={`tel:${lead.phone}`} className="p-3 bg-slate-50 rounded-2xl text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                        <Phone className="w-4 h-4" />
+                      </a>
+                      <button className="p-3 bg-slate-900 rounded-2xl text-white hover:bg-indigo-600 transition-all">
+                        <ExternalLink className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };

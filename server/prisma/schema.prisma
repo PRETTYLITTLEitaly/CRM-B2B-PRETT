@@ -31,6 +31,11 @@ model Lead {
   source       String?
   status       LeadStatus @default(NUOVO)
   notes        String?
+  lat          Float?     @map("latitude")
+  lng          Float?     @map("longitude")
+  address      String?
+  region       String?
+  country      String?    @default("Italia")
   lastSyncAt   DateTime   @default(now()) @map("last_sync_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -50,6 +55,9 @@ model Customer {
   tags             String[]
   status           CustomerStatus @default(POTENZIALE)
   notes            String?
+  lat              Float?         @map("latitude")
+  lng              Float?         @map("longitude")
+  country          String?        @default("Italia")
   manualLatitude   Float?         @map("manual_latitude")
   manualLongitude  Float?         @map("manual_longitude")
   
@@ -70,7 +78,13 @@ model Order {
   totalAmount       Float       @map("total_amount")
   currency          String      @default("EUR")
   paymentStatus     String?     @map("payment_status")
+  shopifyPaymentStatus String?  @map("shopify_payment_status")
+  paymentMethod     String?     @map("payment_method")
   fulfillmentStatus String?     @map("fulfillment_status")
+  itemsCount        Int?        @map("items_count")
+  dueDate           DateTime?   @map("due_date")
+  deliveryDate      DateTime?   @map("delivery_date")
+  googleEventId     String?     @map("google_event_id")
   productsJson      Json?       @map("products_json")
   
   customerId        String      @map("customer_id")

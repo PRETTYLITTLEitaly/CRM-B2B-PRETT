@@ -9,26 +9,32 @@ const processShopifyOrder = async (shopifyOrder) => {
     // 1. Usa il ConversionService per trovare o creare il cliente
     const customer = await conversionService.handleShopifyOrder(shopifyOrder);
 
-    // 2. Salva o Aggiorna l'ordine nel database (Upsert)
+    const totalItems = (shopifyOrder.line_items || []).reduce((sum, li) => sum + (li.quantity || 0), 0);
+    const shopifyStatus = shopifyOrder.fulfillment_status === 'fulfilled' ? 'fulfilled' : (shopifyOrder.fulfillment_status === 'partial' ? 'partial' : 'unfulfilled');
+
     const order = await prisma.order.upsert({
       where: { id: shopifyOrder.id.toString() },
       update: {
         totalAmount: parseFloat(shopifyOrder.total_price),
-        paymentStatus: shopifyOrder.financial_status,
-        fulfillmentStatus: shopifyOrder.fulfillment_status,
+        shopifyPaymentStatus: shopifyOrder.financial_status,
+        fulfillmentStatus: shopifyStatus,
+        itemsCount: totalItems,
         productsJson: shopifyOrder.line_items,
         date: new Date(shopifyOrder.created_at),
       },
       create: {
         id: shopifyOrder.id.toString(),
-        orderNumber: shopifyOrder.order_number.toString(),
+        orderNumber: (shopifyOrder.order_number || `DRAFT-${shopifyOrder.id}`).toString(),
         date: new Date(shopifyOrder.created_at),
         totalAmount: parseFloat(shopifyOrder.total_price),
         currency: shopifyOrder.currency,
-        paymentStatus: shopifyOrder.financial_status,
-        fulfillmentStatus: shopifyOrder.fulfillment_status,
+        shopifyPaymentStatus: shopifyOrder.financial_status,
+        fulfillmentStatus: shopifyStatus,
+        itemsCount: totalItems,
         productsJson: shopifyOrder.line_items,
         customerId: customer.id,
+        // Pre-impostiamo lo stato interno basandoci su Shopify al primo sync
+        paymentStatus: shopifyOrder.financial_status === 'paid' ? 'SALDATO' : 'IN_ATTESA',
       },
     });
 

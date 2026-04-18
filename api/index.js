@@ -11,69 +11,66 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// DIAGNOSTIC ROUTES
-app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
-app.get('/api/test', (req, res) => res.send('ROUTER TEST OK'));
+// SYNC FULL LOGIC (Inlined for Vercel stability)
+async function runFullSync() {
+    const shopName = process.env.SHOPIFY_SHOP_NAME;
+    const setting = await prisma.setting.findUnique({ where: { key: 'shopify_access_token' } });
+    const accessToken = setting?.value;
+    
+    if (!shopName || !accessToken) throw new Error('Missing Shopify credentials');
 
-// RECONCILIATION AUTOMATICA (Clienti, Ordini, Bozze)
+    const cleanShop = shopName.replace('https://', '').replace('.myshopify.com', '').replace(/\/$/, '') + '.myshopify.com';
+    
+    // 1. Get Shopify Customers
+    const cResp = await fetch(`https://${cleanShop}/admin/api/2024-01/customers.json?limit=250`, { headers: { 'X-Shopify-Access-Token': accessToken } });
+    const cData = await cResp.json();
+    const shopifyCustomers = cData.customers || [];
+
+    const existing = await prisma.customer.findMany({ select: { email: true, phone: true } });
+    const existingEmails = new Set(existing.map(e => e.email?.toLowerCase()).filter(Boolean));
+    const existingPhones = new Set(existing.map(e => e.phone).filter(Boolean));
+
+    let created = 0;
+    for (const sc of shopifyCustomers) {
+        const email = sc.email?.toLowerCase().trim();
+        const phone = sc.phone || sc.default_address?.phone;
+        if ((email && existingEmails.has(email)) || (phone && existingPhones.has(phone))) continue;
+
+        await prisma.customer.create({
+            data: {
+                businessName: sc.default_address?.company || `${sc.first_name || ''} ${sc.last_name || ''}`.trim() || 'Shopify Client',
+                contactName: `${sc.first_name || ''} ${sc.last_name || ''}`.trim(),
+                email: email,
+                phone: phone,
+                city: sc.default_address?.city || 'N/A',
+                region: sc.default_address?.province || 'N/A',
+                address: sc.default_address?.address1,
+                status: 'INATTIVO'
+            }
+        });
+        created++;
+    }
+
+    // 2. Trigger Order Sync
+    const { syncOrders } = require('../backend_core/src/services/shopify.service');
+    const orderResult = await syncOrders();
+
+    return { success: true, newCustomers: created, syncedOrders: orderResult.count };
+}
+
 app.get('/api/diag/sync-full', async (req, res) => {
     try {
-        const { fullReconciliation } = require('../backend_core/src/services/reconciliation.service');
-        const result = await fullReconciliation();
+        const result = await runFullSync();
         res.json(result);
     } catch (e) {
-        res.status(500).send("ERROR RECONCILIATION: " + e.message);
+        res.status(500).send("SYNC ERROR: " + e.message + "\n" + e.stack);
     }
 });
 
-// INITIALIZATION ROUTE (Fondamentale per la struttura del tuo DB)
-app.get('/api/init', async (req, res) => {
-  try {
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-          CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'ADMIN');
-      EXCEPTION
-          WHEN duplicate_object THEN null;
-      END $$;
-    `);
+app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "User" (
-          "id" TEXT NOT NULL,
-          "email" TEXT NOT NULL,
-          "password" TEXT NOT NULL,
-          "firstName" TEXT,
-          "lastName" TEXT,
-          "role" "UserRole" NOT NULL DEFAULT 'ADMIN',
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-      );
-    `);
-
-    try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "firstName" TEXT;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastName" TEXT;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "commission_rate" DOUBLE PRECISION DEFAULT 0;');
-    } catch (err) {}
-
-    try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "commission_enabled" BOOLEAN DEFAULT true;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "discounts_json" JSONB;');
-    } catch (err) {}
-
-    await prisma.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
-    `);
-
-    res.json({ success: true, message: 'Database pronto' });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// MAIN API ROUTER (Mounting /api per compatibilità frontend)
+// MAIN API ROUTER
 app.use('/api', mainRouter);
 
-// EXPORT FOR VERCEL (OBBLIGATORIO PER EVITARE ERRORI DI CONNESSIONE)
+// EXPORT FOR VERCEL
 module.exports = app;

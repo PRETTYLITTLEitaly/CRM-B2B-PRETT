@@ -11,7 +11,7 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// DIAGNOSTIC & IMPORT ROUTES
+// IMPORT FROM CSV (OPTIMIZED)
 app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
         const fs = require('fs');
@@ -26,7 +26,13 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
         const { PrismaClient } = require('@prisma/client');
         const prisma = new PrismaClient();
         
-        let created = 0, skipped = 0;
+        // Load all existing for fast lookup
+        const crmCustomers = await prisma.customer.findMany({ select: { email: true, phone: true } });
+        const existingEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
+        const existingPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
+
+        const toCreate = [];
+        let skipped = 0;
 
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].replace(/^'/, '');
@@ -41,28 +47,28 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
             const phone = fields[12]?.replace(/['+]/g, '').trim() || fields[13]?.replace(/['+]/g, '').trim() || '';
             const totalOrders = parseInt(fields[16]) || 0;
 
-            const existing = await prisma.customer.findFirst({
-                where: {
-                    OR: [
-                        email ? { email: { equals: email, mode: 'insensitive' } } : null,
-                        phone ? { phone: { contains: phone } } : null
-                    ].filter(Boolean)
-                }
-            });
+            if ((email && existingEmails.has(email)) || (phone && existingPhones.has(phone))) {
+                skipped++;
+                continue;
+            }
 
-            if (existing) { skipped++; continue; }
-
-            await prisma.customer.create({
-                data: {
-                    firstName, lastName, businessName, email, phone, city,
-                    status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
-                    source: 'SHOPIFY_IMPORT'
-                }
+            toCreate.push({
+                firstName, lastName, businessName, email, phone, city,
+                region: '', // Required by schema
+                status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
+                source: 'SHOPIFY_IMPORT'
             });
-            created++;
+            
+            // Mark as existing for this loop
+            if (email) existingEmails.add(email);
+            if (phone) existingPhones.add(phone);
         }
 
-        res.send(`IMPORTAZIONE DAL CSV COMPLETATA: +${created} nuovi, ${skipped} già presenti.`);
+        if (toCreate.length > 0) {
+            await prisma.customer.createMany({ data: toCreate, skipDuplicates: true });
+        }
+
+        res.send(`IMPORTAZIONE BULK COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
         await prisma.$disconnect();
     } catch (e) {
         res.status(500).send("ERROR: " + e.message);

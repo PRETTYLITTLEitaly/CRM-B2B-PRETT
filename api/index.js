@@ -84,7 +84,7 @@ SDI: BA6ET11";no
 '7202163360008;DIVINA;di Boccino Antonietta;;no;Divina di boccino Antonietta ;Via Acquedotto 135;;Teverola;CE;IT;81030;'+3908119525101;;no;424.00;1;P.IVA 03945390619;no
 '7213991002376;GVM HOME DESIGN;di Simona Fallica;gvm.artedesign@gmail.com;yes;GVM home disign;Via Catania 373;;Adrano;CT;IT;95031;'+393928178100;'+393928178100;no;424.00;1;p.iva 05648460870.   cu x2ph38;no
 '7214007189768;LE CHICCE DI LOLLY;di Jessica Gianotti;lechicchedilolly@gmail.com;yes;Le chicche di Lolly;Corso Giuseppe Garibaldi 93;;Fossombrone;PU;IT;61034;'+393895425792;'+393895425792;no;434.00;1;p.iva 02791600410.   cu SUBM70N;no
-'7222594568456;CELIENTO;Caivano;info@celientobomboniere.it;yes;Celiento;Via Roma 1;;Caivano;NA;IT;80023;'+39 081 831 4660;;no;3710.00;7;;no
+'7222594568456;CELIENTO;Caivano;info@celientobomboniere.it;yes;CELIENTO;Via Roma 1;;Caivano;NA;IT;80023;'+39 081 831 4660;;no;3710.00;7;;no
 '7224263639304;BARBATO ARREDAMENTI;di Anna Barbato;barbato.oggettistica@gmail.com;yes;Barbato Arredamenti;Via Arenaccia 253;;Napoli;NA;IT;80141;'+393477151796;'+393477151796;yes;1791.00;6;;no
 '7229911138568;EVENTI;CERIGNOLA;eventi.cerignola@gmail.com;yes;Eventi Cerignola;Viale di Levante 13;;Cerignola;FG;IT;71042;'+390885428362;;no;728.00;2;;yes
 '7231776162056;Luchetti;luca Augusto;lukacina@hotmail.it;no;;;;;;;;;;no;0.00;0;;no
@@ -223,10 +223,13 @@ cod.ide. 5RUO820";no
             }
 
             toCreate.push({
-                firstName, lastName, businessName, email, phone, city,
+                contactName: `${firstName} ${lastName}`.trim(),
+                businessName: businessName,
+                email: email,
+                phone: phone,
+                city: city,
                 region: '',
-                status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
-                source: 'SHOPIFY_IMPORT'
+                status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO'
             });
             
             if (email) existingEmails.add(email);
@@ -240,27 +243,6 @@ cod.ide. 5RUO820";no
         res.send(`IMPORTAZIONE INLINED COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
     } catch (e) {
         res.status(500).send("ERROR: " + e.message + "\nSTACK: " + e.stack);
-    }
-});
-
-// LOGIN DIAGNOSTIC
-app.post('/api/diag/create-admin', async (req, res) => {
-    try {
-        const hashedPassword = await bcrypt.hash("Admin123!", 10);
-        const user = await prisma.user.upsert({
-            where: { email: 'admin@prettylittle.it' },
-            update: { password: hashedPassword },
-            create: {
-                email: 'admin@prettylittle.it',
-                password: hashedPassword,
-                firstName: 'Admin',
-                lastName: 'Pretty',
-                role: 'ADMIN'
-            }
-        });
-        res.send("Admin user ensured: " + user.email);
-    } catch (e) {
-        res.status(500).send(e.message);
     }
 });
 

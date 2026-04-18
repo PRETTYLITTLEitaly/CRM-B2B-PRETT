@@ -48,6 +48,11 @@ async function runFullSync() {
                 status: 'INATTIVO'
             }
         });
+        
+        // AGGIORNA I SET LOCALI per evitare duplicati nello stesso loop
+        if (email) existingEmails.add(email);
+        if (phone) existingPhones.add(phone);
+        
         created++;
     }
 

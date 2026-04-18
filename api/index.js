@@ -27,6 +27,9 @@ app.get('/api/health', async (req, res) => {
         const shopifyCustomers = data.customers || [];
         
         const crmCustomers = await prisma.customer.findMany();
+        const activeCount = crmCustomers.filter(c => c.status === 'ATTIVO').length;
+        const potentialCount = crmCustomers.filter(c => c.status === 'POTENZIALE').length;
+        
         const crmEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
         const crmPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
 
@@ -43,13 +46,18 @@ app.get('/api/health', async (req, res) => {
             }
         }
 
-        const report = `DIAGNOSI COMPLETATA (VIA HEALTH ROUTE). 
+        const report = `DIAGNOSI COMPLETATA. 
         Shopify: ${shopifyCustomers.length} schede. 
-        CRM: ${crmCustomers.length} clienti.
-        
-        FUSI (Duplicati/Match): ${merged.length}
-        MANCANTI (Mai importati): ${missing.length}
-        
+        CRM TOTALE: ${crmCustomers.length} clienti.
+        ---------
+        STATI CRM:
+        - ATTIVI (Quelli che vedi): ${activeCount}
+        - POTENZIALI: ${potentialCount}
+        ---------
+        CONFRONTO CON SHOPIFY:
+        - FUSI (Già nel CRM): ${merged.length}
+        - MANCANTI (Ma presenti in CSV): ${missing.length}
+        ---------
         ELENCO MANCANTI: \n- ${missing.join('\n- ')}`;
 
         res.send(`<pre>${report}</pre>`);

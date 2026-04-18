@@ -8,19 +8,17 @@ class CRMService {
                 prisma.order.count(),
                 prisma.customer.count(),
                 prisma.lead.count(),
-                prisma.order.findMany({
-                    take: 5,
-                    orderBy: { date: 'desc' },
-                    include: { customer: true }
-                })
-            ]);
+            const ordersText = recentOrders.map(o => {
+                const orderDate = new Date(o.date).toLocaleDateString('it-IT');
+                return `- Ordine #${o.orderNumber} del ${orderDate} da ${o.customer?.businessName || 'N/D'} (${o.totalAmount}€)`;
+            }).join('\n');
 
-            const ordersText = recentOrders.map(o => 
-                `- Ordine #${o.orderNumber} da ${o.customer?.businessName || 'N/D'} (${o.totalAmount}€)`
-            ).join('\n');
+            const now = new Date().toLocaleString('it-IT', { timeZone: 'Europe/Rome' });
 
             return `
-                STATISTICHE REALI CRM (DATI AGGIORNATI):
+                DATA/ORA ATTUALE (ROMA): ${now}
+                
+                STATISTICHE REALI CRM:
                 - Totale Ordini: ${orderCount}
                 - Totale Clienti: ${customerCount}
                 - Totale Lead: ${leadCount}

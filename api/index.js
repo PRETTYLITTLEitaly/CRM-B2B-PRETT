@@ -243,86 +243,30 @@ cod.ide. 5RUO820";no
     }
 });
 
-app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
-
-// INITIALIZATION ROUTE (Self-healing DB)
-app.get('/api/init', async (req, res) => {
-  try {
-    // 1. Assicura l'enum UserRole
-    await prisma.$executeRawUnsafe(`
-      DO $$ BEGIN
-          CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'ADMIN');
-      EXCEPTION
-          WHEN duplicate_object THEN null;
-      END $$;
-    `);
-
-    // 2. Assicura la tabella User con i nuovi campi
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "User" (
-          "id" TEXT NOT NULL,
-          "email" TEXT NOT NULL,
-          "password" TEXT NOT NULL,
-          "firstName" TEXT,
-          "lastName" TEXT,
-          "role" "UserRole" NOT NULL DEFAULT 'ADMIN',
-          "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "User_pkey" PRIMARY KEY ("id")
-      );
-    `);
-
-    // Migrazione: se la colonna "name" esiste ancora (legacy), aggiungiamo le nuove se mancano
+// LOGIN DIAGNOSTIC
+app.post('/api/diag/create-admin', async (req, res) => {
     try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "firstName" TEXT;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "lastName" TEXT;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "commission_rate" DOUBLE PRECISION DEFAULT 0;');
-    } catch (err) {
-      console.log('Colonne già presenti o errore in aggiunta:', err);
+        const hashedPassword = await bcrypt.hash("Admin123!", 10);
+        const user = await prisma.user.upsert({
+            where: { email: 'admin@prettylittle.it' },
+            update: { password: hashedPassword },
+            create: {
+                email: 'admin@prettylittle.it',
+                password: hashedPassword,
+                firstName: 'Admin',
+                lastName: 'Pretty',
+                role: 'ADMIN'
+            }
+        });
+        res.send("Admin user ensured: " + user.email);
+    } catch (e) {
+        res.status(500).send(e.message);
     }
-
-    try {
-      await prisma.$executeRawUnsafe('ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "commission_enabled" BOOLEAN DEFAULT true;');
-      await prisma.$executeRawUnsafe('ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "discounts_json" JSONB;');
-    } catch (err) {
-      console.log('Colonne aggiuntive già presenti o errore:', err);
-    }
-
-    // 3. Assicura l'indice
-    await prisma.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
-    `);
-
-    const email = 'info@prettylittle.it';
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (!exists) {
-      const hashedPassword = await bcrypt.hash('---', 10);
-      await prisma.user.create({
-        data: {
-          email,
-          password: hashedPassword,
-          firstName: 'Luca',
-          lastName: 'Vitale',
-          role: 'SUPER_ADMIN'
-        }
-      });
-      return res.json({ success: true, message: 'Database aggiornato e Admin Luca Vitale creato' });
-    } else {
-      // Aggiorna admin esistente con i campi separati se necessario
-      await prisma.user.update({
-        where: { email },
-        data: { firstName: 'Luca', lastName: 'Vitale' }
-      });
-    }
-    res.json({ success: true, message: 'Database già pronto con firstName/lastName' });
-  } catch (e) {
-    res.status(500).json({ success: false, error: e.message, stack: e.stack });
-  }
 });
 
-// MAIN API ROUTER
-app.use('/api', mainRouter);
+app.use('/', mainRouter);
 
-// EXPORT FOR VERCEL
-module.exports = app;
-
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

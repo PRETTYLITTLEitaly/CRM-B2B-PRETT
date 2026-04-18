@@ -11,109 +11,65 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// DIAGNOSTIC ROUTES
-app.get('/api/health', async (req, res) => {
+// DIAGNOSTIC & IMPORT ROUTES
+app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
+        const fs = require('fs');
+        const path = require('path');
+        const csvPath = path.join(process.cwd(), 'customers_export-2 2.csv');
+        
+        if (!fs.existsSync(csvPath)) return res.status(404).send('CSV NOT FOUND');
+
+        const content = fs.readFileSync(csvPath, 'utf8');
+        const lines = content.split(/\r?\n(?=')/);
+        
         const { PrismaClient } = require('@prisma/client');
         const prisma = new PrismaClient();
         
-        const shopName = process.env.SHOPIFY_SHOP_NAME;
-        const accessTokenSetting = await prisma.setting.findUnique({ where: { key: 'shopify_access_token' } });
-        const accessToken = accessTokenSetting?.value;
+        let created = 0, skipped = 0;
 
-        const shopifyUrl = `https://${shopName.replace('https://', '').replace('.myshopify.com', '')}.myshopify.com/admin/api/2024-01/customers.json?limit=250`;
-        const resp = await fetch(shopifyUrl, { headers: { 'X-Shopify-Access-Token': accessToken } });
-        const data = await resp.json();
-        const shopifyCustomers = data.customers || [];
-        
-        const crmCustomers = await prisma.customer.findMany();
-        const activeCount = crmCustomers.filter(c => c.status === 'ATTIVO').length;
-        const potentialCount = crmCustomers.filter(c => c.status === 'POTENZIALE').length;
-        
-        const crmEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
-        const crmPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].replace(/^'/, '');
+            const fields = line.split(';');
+            if (fields.length < 5) continue;
 
-        const missing = [];
-        const merged = [];
+            const firstName = fields[1] || '';
+            const lastName = fields[2] || '';
+            const email = fields[3]?.toLowerCase().trim() || null;
+            const businessName = fields[5] || `${firstName} ${lastName}`;
+            const city = fields[8] || '';
+            const phone = fields[12]?.replace(/['+]/g, '').trim() || fields[13]?.replace(/['+]/g, '').trim() || '';
+            const totalOrders = parseInt(fields[16]) || 0;
 
-        for (const sc of shopifyCustomers) {
-            const email = sc.email?.toLowerCase();
-            const phone = sc.phone || sc.default_address?.phone;
-            if (crmEmails.has(email) || (phone && crmPhones.has(phone))) {
-                merged.push(`${sc.first_name || ''} ${sc.last_name || ''}`);
-            } else {
-                missing.push(`${sc.first_name || ''} ${sc.last_name || ''} (${email || 'No Email'})`);
-            }
+            const existing = await prisma.customer.findFirst({
+                where: {
+                    OR: [
+                        email ? { email: { equals: email, mode: 'insensitive' } } : null,
+                        phone ? { phone: { contains: phone } } : null
+                    ].filter(Boolean)
+                }
+            });
+
+            if (existing) { skipped++; continue; }
+
+            await prisma.customer.create({
+                data: {
+                    firstName, lastName, businessName, email, phone, city,
+                    status: totalOrders > 0 ? 'ATTIVO' : 'POTENZIALE',
+                    source: 'SHOPIFY_IMPORT'
+                }
+            });
+            created++;
         }
 
-        const report = `DIAGNOSI COMPLETATA. 
-        Shopify: ${shopifyCustomers.length} schede. 
-        CRM TOTALE: ${crmCustomers.length} clienti.
-        ---------
-        STATI CRM:
-        - ATTIVI (Quelli che vedi): ${activeCount}
-        - POTENZIALI: ${potentialCount}
-        ---------
-        CONFRONTO CON SHOPIFY:
-        - FUSI (Già nel CRM): ${merged.length}
-        - MANCANTI (Ma presenti in CSV): ${missing.length}
-        ---------
-        ELENCO MANCANTI: \n- ${missing.join('\n- ')}`;
-
-        res.send(`<pre>${report}</pre>`);
+        res.send(`IMPORTAZIONE DAL CSV COMPLETATA: +${created} nuovi, ${skipped} già presenti.`);
         await prisma.$disconnect();
     } catch (e) {
-        res.status(500).send("HEALTH REPORT ERROR: " + e.message);
+        res.status(500).send("ERROR: " + e.message);
     }
 });
 
-// GENERATE REPORT ON REFRESH
-app.get('/api/check', async (req, res) => {
-    try {
-        const { PrismaClient } = require('@prisma/client');
-        const prisma = new PrismaClient();
-        
-        const shopName = process.env.SHOPIFY_SHOP_NAME;
-        const accessTokenSetting = await prisma.setting.findUnique({ where: { key: 'shopify_access_token' } });
-        const accessToken = accessTokenSetting?.value;
-
-        const shopifyUrl = `https://${shopName.replace('https://', '').replace('.myshopify.com', '')}.myshopify.com/admin/api/2024-01/customers.json?limit=250`;
-        const resp = await fetch(shopifyUrl, { headers: { 'X-Shopify-Access-Token': accessToken } });
-        const data = await resp.json();
-        const shopifyCustomers = data.customers || [];
-        
-        const crmCustomers = await prisma.customer.findMany();
-        const crmEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
-        const crmPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
-
-        const missing = [];
-        const merged = [];
-
-        for (const sc of shopifyCustomers) {
-            const email = sc.email?.toLowerCase();
-            const phone = sc.phone || sc.default_address?.phone;
-            if (crmEmails.has(email) || (phone && crmPhones.has(phone))) {
-                merged.push(`${sc.first_name || ''} ${sc.last_name || ''}`);
-            } else {
-                missing.push(`${sc.first_name || ''} ${sc.last_name || ''} (${email || 'No Email'})`);
-            }
-        }
-
-        const report = `DIAGNOSI COMPLETATA. 
-        Shopify: ${shopifyCustomers.length} schede. 
-        CRM: ${crmCustomers.length} clienti.
-        
-        FUSI (Duplicati/Match): ${merged.length}
-        MANCANTI (Mai importati): ${missing.length}
-        
-        ELENCO MANCANTI: \n- ${missing.join('\n- ')}`;
-
-        res.send(`<pre>${report}</pre>`);
-        await prisma.$disconnect();
-    } catch (e) {
-        res.status(500).send(e.message);
-    }
-});
+app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
 
 // INITIALIZATION ROUTE (Self-healing DB)
 app.get('/api/init', async (req, res) => {

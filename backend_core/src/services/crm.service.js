@@ -10,13 +10,13 @@ class CRMService {
                 prisma.lead.count(),
                 prisma.order.findMany({
                     take: 5,
-                    orderBy: { created_at: 'desc' },
+                    orderBy: { date: 'desc' },
                     include: { customer: true }
                 })
             ]);
 
             const ordersText = recentOrders.map(o => 
-                `- Ordine #${o.order_number} da ${o.customer?.first_name || 'N/D'} (${o.total_price}€)`
+                `- Ordine #${o.orderNumber} da ${o.customer?.businessName || 'N/D'} (${o.totalAmount}€)`
             ).join('\n');
 
             return `

@@ -2,7 +2,7 @@ const axios = require('axios');
 
 class AIService {
     constructor() {
-        this.apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        this.apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
         this.systemInstruction = `
             Sei l'assistente virtuale ufficiale di PRETTYB2B, una piattaforma CRM avanzata per il commercio all'ingrosso.
             Il tuo obiettivo è aiutare Luca e il suo team a gestire lead, clienti e ordini Shopify.
@@ -14,7 +14,6 @@ class AIService {
         const apiKey = process.env.GEMINI_API_KEY;
 
         if (!apiKey) {
-            console.error('[AI SERVICE] CRITICAL: GEMINI_API_KEY is missing');
             return "Errore: Configurazione mancante (API Key).";
         }
 
@@ -48,12 +47,12 @@ class AIService {
                 return response.data.candidates[0].content.parts[0].text;
             }
 
-            return "Non sono riuscito a generare una risposta.";
+            return "Ricevuto! Come posso aiutarti oggi?";
 
         } catch (error) {
             const errorMsg = error.response?.data?.error?.message || error.message;
             console.error('[AI SERVICE ERROR]:', errorMsg);
-            throw new Error(`AI_LIST_MODELS_FAILED: ${errorMsg}`);
+            return `Si è verificato un problema con l'IA: ${errorMsg}`;
         }
     }
 }

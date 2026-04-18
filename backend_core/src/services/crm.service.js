@@ -8,6 +8,13 @@ class CRMService {
                 prisma.order.count(),
                 prisma.customer.count(),
                 prisma.lead.count(),
+                prisma.order.findMany({
+                    take: 5,
+                    orderBy: { date: 'desc' },
+                    include: { customer: true }
+                })
+            ]);
+
             const ordersText = recentOrders.map(o => {
                 const orderDate = new Date(o.date).toLocaleDateString('it-IT');
                 return `- Ordine #${o.orderNumber} del ${orderDate} da ${o.customer?.businessName || 'N/D'} (${o.totalAmount}€)`;

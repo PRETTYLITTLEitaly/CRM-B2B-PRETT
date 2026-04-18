@@ -11,7 +11,7 @@ router.post('/chat', async (req, res) => {
         }
 
         const reply = await aiService.generateChatReply(message, history);
-        res.json({ reply });
+        res.json({ success: true, reply });
     } catch (error) {
         console.error('AI Route Error:', error.message);
         res.status(500).json({ error: 'Errore interno dell\'assistente' });

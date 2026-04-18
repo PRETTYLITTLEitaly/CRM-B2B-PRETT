@@ -10,12 +10,10 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// ROUTE DI TEST PER VERIFICARE CHE IL SERVER SIA VIVO
-app.get('/api/health', (req, res) => {
-    res.send({ status: 'ok', timestamp: new Date() });
-});
+// Mantengo la struttura originale che permette il login
+app.use('/', mainRouter);
 
-// IMPORT FROM CSV (LA LOGICA VIENE CARICATA DINAMICAMENTE PER NON PESARE SUL LOGIN)
+// Aggiungo l'importazione in fondo per non interferire con il login
 app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
         const { importData } = require('./import_data');
@@ -23,14 +21,6 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
     } catch (e) {
         res.status(500).send("ERROR: " + e.message);
     }
-});
-
-app.use('/', mainRouter);
-
-// Gestione errori globale per evitare crash del server
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).send('Something broke!');
 });
 
 const PORT = process.env.PORT || 3001;

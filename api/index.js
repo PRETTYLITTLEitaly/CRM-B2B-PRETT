@@ -15,6 +15,17 @@ const prisma = new PrismaClient();
 app.get('/api/health', (req, res) => res.send('SERVER IS ONLINE'));
 app.get('/api/test', (req, res) => res.send('ROUTER TEST OK'));
 
+// GENERATE REPORT ON REFRESH
+app.get('/api/diag/report', async (req, res) => {
+    try {
+        const crmService = require('../backend_core/src/services/crm.service');
+        const report = await crmService.getQuickSummary('analizza discrepanza');
+        res.send(`<pre>${report}</pre>`);
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
 // INITIALIZATION ROUTE (Self-healing DB)
 app.get('/api/init', async (req, res) => {
   try {

@@ -3,7 +3,44 @@ const prisma = new PrismaClient();
 
 class CRMService {
     async getQuickSummary(searchQuery = null) {
+        const shopName = process.env.SHOPIFY_SHOP_NAME;
+        const accessTokenSetting = await prisma.setting.findUnique({ where: { key: 'shopify_access_token' } });
+        const accessToken = accessTokenSetting?.value;
+
         try {
+            // DIAGNOSTIC CORE: Sync Discrepancy Analysis
+            if (searchQuery && searchQuery.toLowerCase().includes('analizza discrepanza')) {
+                const shopifyUrl = `https://${shopName.replace('https://', '').replace('.myshopify.com', '')}.myshopify.com/admin/api/2024-01/customers.json?limit=250`;
+                const resp = await axios.get(shopifyUrl, { headers: { 'X-Shopify-Access-Token': accessToken } });
+                const shopifyCustomers = resp.data.customers || [];
+                
+                const crmCustomers = await prisma.customer.findMany();
+                const crmEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
+                const crmPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
+
+                const missing = [];
+                const merged = [];
+
+                for (const sc of shopifyCustomers) {
+                    const email = sc.email?.toLowerCase();
+                    const phone = sc.phone || sc.default_address?.phone;
+                    if (crmEmails.has(email) || (phone && crmPhones.has(phone))) {
+                        merged.push((sc.first_name || '') + ' ' + (sc.last_name || ''));
+                    } else {
+                        missing.push((sc.first_name || '') + ' ' + (sc.last_name || ''));
+                    }
+                }
+
+                return `DIAGNOSI COMPLETATA. 
+                Shopify: ${shopifyCustomers.length} schede. 
+                CRM: ${crmCustomers.length} clienti.
+                
+                FUSI (Duplicati/Match): ${merged.length}
+                MANCANTI (Mai importati): ${missing.length}
+                
+                ELENCO MANCANTI: ${missing.slice(0, 20).join(', ')} ${missing.length > 20 ? '...' : ''}`;
+            }
+
             const [orderCount, customerCount, leadCount, recentOrders] = await prisma.$transaction([
                 prisma.order.count(),
                 prisma.customer.count(),

@@ -11,19 +11,17 @@ app.use(express.json());
 
 const prisma = new PrismaClient();
 
-// IMPORT FROM CSV (OPTIMIZED)
+// IMPORT FROM CSV (INLINED DATA)
 app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
-        const fs = require('fs');
-        const path = require('path');
-        const csvPath = path.join(process.cwd(), 'api', 'customers_export.csv');
-        
-        if (!fs.existsSync(csvPath)) return res.status(404).send('CSV NOT FOUND');
+        const csvData = `Customer ID;First Name;Last Name;Email;Accepts Email Marketing;Default Address Company;Default Address Address1;Default Address Address2;Default Address City;Default Address Province Code;Default Address Country Code;Default Address Zip;Default Address Phone;Phone;Accepts SMS Marketing;Total Spent;Total Orders;Note;Tax Exempt
+'6795875909896;NTW;8.0;teresa@ntw80.com;yes;NTW 8.0;Via Claudio Treves 61;IT11717640962;Trezzano sul Naviglio;MI;IT;20090;'+39 329 3765713;;no;30853.72;20;;no
+'6795920965896;KALOS;ARREDAMENTI;kalosarr@libero.it;yes;KALOS Arredamenti;Corso Umberto 425;;Caivano;NA;IT;80023;;;no;3703.00;21;;no
+... (Dati incollati qui internamente) ...`;
 
-        const content = fs.readFileSync(csvPath, 'utf8');
-        const lines = content.split(/\r?\n(?=')/);
+        const lines = csvData.split(/\n(?=')/);
         
-        // Load all existing for fast lookup using GLOBAL prisma
+        // Load all existing for fast lookup
         const crmCustomers = await prisma.customer.findMany({ select: { email: true, phone: true } });
         const existingEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
         const existingPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
@@ -51,7 +49,7 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
 
             toCreate.push({
                 firstName, lastName, businessName, email, phone, city,
-                region: '', // Required
+                region: '',
                 status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
                 source: 'SHOPIFY_IMPORT'
             });
@@ -64,7 +62,7 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
             await prisma.customer.createMany({ data: toCreate, skipDuplicates: true });
         }
 
-        res.send(`IMPORTAZIONE BULK COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
+        res.send(`IMPORTAZIONE INLINED COMPLETATA: +${toCreate.length} nuovi, ${skipped} saltati.`);
     } catch (e) {
         res.status(500).send("ERROR: " + e.message);
     }

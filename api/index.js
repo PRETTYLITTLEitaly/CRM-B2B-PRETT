@@ -16,7 +16,7 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
     try {
         const fs = require('fs');
         const path = require('path');
-        const csvPath = path.join(process.cwd(), 'customers_export-2 2.csv');
+        const csvPath = path.join(process.cwd(), 'api', 'customers_export.csv');
         
         if (!fs.existsSync(csvPath)) return res.status(404).send('CSV NOT FOUND');
 

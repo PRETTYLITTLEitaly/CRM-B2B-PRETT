@@ -31,7 +31,7 @@ class AIService {
 
             const response = await axios.post(`${this.apiUrl}?key=${apiKey}`, {
                 contents: contents,
-                systemInstruction: { parts: [{ text: this.systemInstruction }] },
+                system_instruction: { parts: [{ text: this.systemInstruction }] },
                 generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
             });
 

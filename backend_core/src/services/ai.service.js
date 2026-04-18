@@ -2,7 +2,7 @@ const axios = require('axios');
 
 class AIService {
     constructor() {
-        this.apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
+        this.apiUrl = 'https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent';
         this.systemInstruction = `
             Sei l'assistente virtuale ufficiale di PRETTYB2B, una piattaforma CRM avanzata per il commercio all'ingrosso.
             Il tuo obiettivo è aiutare Luca e il suo team a gestire lead, clienti e ordini Shopify.

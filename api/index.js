@@ -55,7 +55,7 @@ app.get('/api/diag/import-from-csv', async (req, res) => {
             await prisma.customer.create({
                 data: {
                     firstName, lastName, businessName, email, phone, city,
-                    status: totalOrders > 0 ? 'ATTIVO' : 'POTENZIALE',
+                    status: totalOrders > 0 ? 'ATTIVO' : 'INATTIVO',
                     source: 'SHOPIFY_IMPORT'
                 }
             });

@@ -18,9 +18,46 @@ app.get('/api/test', (req, res) => res.send('ROUTER TEST OK'));
 // GENERATE REPORT ON REFRESH
 app.get('/api/diag/report', async (req, res) => {
     try {
-        const crmService = require('../backend_core/src/services/crm.service');
-        const report = await crmService.getQuickSummary('analizza discrepanza');
+        const { PrismaClient } = require('@prisma/client');
+        const prisma = new PrismaClient();
+        
+        const shopName = process.env.SHOPIFY_SHOP_NAME;
+        const accessTokenSetting = await prisma.setting.findUnique({ where: { key: 'shopify_access_token' } });
+        const accessToken = accessTokenSetting?.value;
+
+        const shopifyUrl = `https://${shopName.replace('https://', '').replace('.myshopify.com', '')}.myshopify.com/admin/api/2024-01/customers.json?limit=250`;
+        const resp = await fetch(shopifyUrl, { headers: { 'X-Shopify-Access-Token': accessToken } });
+        const data = await resp.json();
+        const shopifyCustomers = data.customers || [];
+        
+        const crmCustomers = await prisma.customer.findMany();
+        const crmEmails = new Set(crmCustomers.map(c => c.email?.toLowerCase()).filter(Boolean));
+        const crmPhones = new Set(crmCustomers.map(c => c.phone).filter(Boolean));
+
+        const missing = [];
+        const merged = [];
+
+        for (const sc of shopifyCustomers) {
+            const email = sc.email?.toLowerCase();
+            const phone = sc.phone || sc.default_address?.phone;
+            if (crmEmails.has(email) || (phone && crmPhones.has(phone))) {
+                merged.push(`${sc.first_name || ''} ${sc.last_name || ''}`);
+            } else {
+                missing.push(`${sc.first_name || ''} ${sc.last_name || ''} (${email || 'No Email'})`);
+            }
+        }
+
+        const report = `DIAGNOSI COMPLETATA. 
+        Shopify: ${shopifyCustomers.length} schede. 
+        CRM: ${crmCustomers.length} clienti.
+        
+        FUSI (Duplicati/Match): ${merged.length}
+        MANCANTI (Mai importati): ${missing.length}
+        
+        ELENCO MANCANTI: \n- ${missing.join('\n- ')}`;
+
         res.send(`<pre>${report}</pre>`);
+        await prisma.$disconnect();
     } catch (e) {
         res.status(500).send(e.message);
     }

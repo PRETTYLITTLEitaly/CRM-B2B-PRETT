@@ -19,10 +19,20 @@ class AIService {
         }
 
         try {
-            const contents = history.slice(-6).map(msg => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content }]
-            }));
+            const contents = [
+                {
+                    role: 'user',
+                    parts: [{ text: `ISTRUZIONI DI SISTEMA (IGNORA SE GIÀ RICEVUTE): ${this.systemInstruction}` }]
+                },
+                {
+                    role: 'model',
+                    parts: [{ text: 'Ricevuto. Sono pronto ad assisterti come assistente ufficiale di PRETTYB2B.' }]
+                },
+                ...history.slice(-6).map(msg => ({
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    parts: [{ text: msg.content }]
+                }))
+            ];
 
             contents.push({
                 role: 'user',
@@ -31,7 +41,6 @@ class AIService {
 
             const response = await axios.post(`${this.apiUrl}?key=${apiKey}`, {
                 contents: contents,
-                system_instruction: { parts: [{ text: this.systemInstruction }] },
                 generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
             });
 

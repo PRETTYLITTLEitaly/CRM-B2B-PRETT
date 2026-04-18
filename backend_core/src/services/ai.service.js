@@ -13,7 +13,8 @@ class AIService {
 
     async generateChatReply(userMessage, history = []) {
         const apiKey = process.env.GEMINI_API_KEY;
-        const crmContext = await crmService.getQuickSummary();
+        // Search if the message contains potential names or keywords
+        const crmContext = await crmService.getQuickSummary(userMessage);
 
         if (!apiKey) {
             return "Errore: Configurazione mancante (API Key).";

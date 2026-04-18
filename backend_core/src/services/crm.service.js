@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 class CRMService {
-    async getQuickSummary() {
+    async getQuickSummary(searchQuery = null) {
         try {
             const [orderCount, customerCount, leadCount, recentOrders] = await prisma.$transaction([
                 prisma.order.count(),
@@ -14,6 +14,21 @@ class CRMService {
                     include: { customer: true }
                 })
             ]);
+
+            let searchResultsText = '';
+            if (searchQuery && searchQuery.length > 2) {
+                const results = await prisma.customer.findMany({
+                    where: { businessName: { contains: searchQuery, mode: 'insensitive' } },
+                    take: 3,
+                    include: { orders: { take: 5, orderBy: { date: 'desc' } } }
+                });
+
+                if (results.length > 0) {
+                    searchResultsText = "\n\nRISULTATI RICERCA SPECIFICA:\n" + results.map(c => 
+                        `Cliente: ${c.businessName}\nCittà: ${c.city}\nOrdini recenti: ${c.orders.map(o => `#${o.orderNumber} del ${new Date(o.date).toLocaleDateString('it-IT')} (${o.totalAmount}€)`).join(', ')}`
+                    ).join('\n---\n');
+                }
+            }
 
             const ordersText = recentOrders.map(o => {
                 const orderDate = new Date(o.date).toLocaleDateString('it-IT');
@@ -32,6 +47,8 @@ class CRMService {
                 
                 ULTIMI 5 ORDINI:
                 ${ordersText || 'Nessun ordine recente.'}
+
+                ${searchResultsText}
             `;
         } catch (error) {
             console.error('Error fetching CRM summary:', error);

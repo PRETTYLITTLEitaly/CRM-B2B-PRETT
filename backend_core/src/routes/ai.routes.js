@@ -14,7 +14,7 @@ router.post('/chat', async (req, res) => {
         res.json({ success: true, reply });
     } catch (error) {
         console.error('AI Route Error:', error.message);
-        res.status(500).json({ error: 'Errore interno dell\'assistente' });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

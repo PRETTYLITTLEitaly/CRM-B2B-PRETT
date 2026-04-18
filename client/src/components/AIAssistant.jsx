@@ -46,7 +46,7 @@ const AIAssistant = () => {
             if (data.success) {
                 setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
             } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: 'Ops, qualcosa è andato storto. Riprova più tardi.' }]);
+                setMessages(prev => [...prev, { role: 'assistant', content: `Errore: ${data.error || 'Ops, qualcosa è andato storto.'}` }]);
             }
         } catch (error) {
             console.error('AI Chat Error:', error);

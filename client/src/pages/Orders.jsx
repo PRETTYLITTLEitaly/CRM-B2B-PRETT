@@ -1,138 +1,118 @@
-import React from 'react';
-import { 
-  ShoppingCart, 
-  ExternalLink, 
-  Package, 
-  CircleDot, 
-  CheckCircle2, 
-  Clock,
-  Search,
-  Filter
-} from 'lucide-react';
-
-const orders = [
-  { id: '#1052', customer: 'Tech Gadgets Hub', date: '2 ore fa', items: 3, total: '€450.00', status: 'In elaborazione', type: 'Shopify' },
-  { id: '#1051', customer: 'Fashion Boutique', date: '5 ore fa', items: 1, total: '€1,200.00', status: 'Spedito', type: 'Shopify' },
-  { id: '#1050', customer: 'Lombardi Vini', date: 'Ieri', items: 12, total: '€2,450.00', status: 'Consegnato', type: 'Manuale' },
-  { id: '#1049', customer: 'Bio Store XL', date: '2 giorni fa', items: 5, total: '€320.00', status: 'Cancellato', type: 'Shopify' },
-];
-
-const StatusBadge = ({ status }) => {
-  const styles = {
-    'In elaborazione': 'bg-accent/10 text-accent border-accent/20',
-    'Spedito': 'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-    'Consegnato': 'bg-success/10 text-success border-success/20',
-    'Cancellato': 'bg-danger/10 text-danger border-danger/20',
-  };
-  
-  return (
-    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${styles[status]}`}>
-      {status}
-    </span>
-  );
-};
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, ShoppingCart, Calendar, CreditCard, RefreshCw } from 'lucide-react';
 
 const Orders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchOrders = async (sync = false) => {
+    try {
+      setLoading(true);
+      const url = sync ? '/api/webhooks/shopify/sync' : '/api/orders';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Errore nella comunicazione con il server');
+      const result = await response.json();
+      
+      // Se è un sync, ricarichiamo gli ordini dal DB per sicurezza subito dopo
+      if (sync) {
+        const dbResponse = await fetch('/api/orders');
+        const dbResult = await dbResponse.json();
+        setOrders(dbResult.data || []);
+      } else {
+        setOrders(result.data || []);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-text-main">Gestione Ordini</h2>
-          <p className="text-text-dim mt-1">Sincronizzazione in tempo reale con Shopify Admin API.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-lg border border-border hover:bg-white/5 transition-colors flex items-center gap-2">
-            <Filter size={18} />
-            Filtri Avanzati
-          </button>
-          <button className="btn-primary flex items-center gap-2">
-            Sincronizza Shopify
-          </button>
-        </div>
-      </header>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter italic uppercase">
+          Ordini <span className="text-indigo-600">Sync.</span>
+        </h1>
+        <button 
+          onClick={() => fetchOrders(true)}
+          className="btn-primary flex items-center justify-center gap-2 w-full md:w-auto"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizza Shopify
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card border-l-4 border-l-accent flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-accent/10 text-accent">
-            <Clock size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">In Sospeso</p>
-            <h4 className="text-xl font-bold">14 Ordini</h4>
-          </div>
+        <div className="card bg-indigo-600 text-white">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2">Totale Ordini</p>
+          <h3 className="text-3xl font-black">{orders.length}</h3>
         </div>
-        <div className="card border-l-4 border-l-success flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-success/10 text-success">
-            <Package size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">Da Spedire oggi</p>
-            <h4 className="text-xl font-bold">5 Ordini</h4>
-          </div>
+        <div className="card">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Da Spedire</p>
+          <h3 className="text-3xl font-black text-slate-900">0</h3>
         </div>
-        <div className="card border-l-4 border-l-indigo-400 flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-indigo-400/10 text-indigo-400">
-            <CheckCircle2 size={24} />
-          </div>
-          <div>
-            <p className="text-text-dim text-xs font-bold uppercase">Completati (30gg)</p>
-            <h4 className="text-xl font-bold">128 Ordini</h4>
-          </div>
+        <div className="card">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">In Consegna</p>
+          <h3 className="text-3xl font-black text-slate-900">0</h3>
         </div>
       </div>
 
-      <div className="card !p-0 overflow-hidden">
-        <div className="p-4 border-b border-border flex justify-between items-center bg-white/5">
-           <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" size={16} />
-              <input type="text" placeholder="Cerca ordine..." className="w-full bg-bg-primary border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:outline-none" />
-           </div>
-           <div className="flex gap-2">
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg bg-accent text-white">Tutti</button>
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-white/5 text-text-dim transition-colors">Shopify</button>
-             <button className="text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-white/5 text-text-dim transition-colors">Manuali</button>
-           </div>
-        </div>
-        <table className="w-full text-left">
-          <thead className="text-[10px] uppercase text-text-dim font-bold tracking-wider">
-            <tr>
-              <th className="px-6 py-4">Ordine</th>
-              <th className="px-6 py-4">Cliente</th>
-              <th className="px-6 py-4">Data</th>
-              <th className="px-6 py-4">Prodotti</th>
-              <th className="px-6 py-4">Totale</th>
-              <th className="px-6 py-4">Stato</th>
-              <th className="px-6 py-4 text-right">Shopify</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {orders.map((order) => (
-              <tr key={order.id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-6 py-4 font-bold text-text-main">{order.id}</td>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium">{order.customer}</div>
-                </td>
-                <td className="px-6 py-4 text-xs text-text-dim">{order.date}</td>
-                <td className="px-6 py-4">
-                  <span className="flex items-center gap-1.5 text-xs">
-                    <Package size={12} className="text-text-dim" /> {order.items} SKU
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-bold text-sm text-text-main">{order.total}</td>
-                <td className="px-6 py-4">
-                  <StatusBadge status={order.status} />
-                </td>
-                <td className="px-6 py-4 text-right">
-                  {order.type === 'Shopify' && (
-                    <button className="p-2 rounded-lg hover:bg-accent/10 text-text-dim hover:text-accent transition-colors">
-                      <ExternalLink size={16} />
-                    </button>
-                  )}
-                </td>
+      <div className="card overflow-hidden !p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <th className="px-10 py-6">ID Ordine</th>
+                <th className="px-6 py-6">Data</th>
+                <th className="px-6 py-6">Cliente</th>
+                <th className="px-6 py-6">Totale</th>
+                <th className="px-6 py-6">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-20 text-center">
+                    <div className="flex justify-center"><RefreshCw className="animate-spin text-indigo-600" /></div>
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                    Nessun ordine trovato. Sincronizza con Shopify.
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order, i) => (
+                  <tr key={order.id || i} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-10 py-6">
+                      <span className="text-xs font-bold text-slate-900">#{order.orderNumber || order.shopifyOrderId}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className="text-xs font-semibold text-slate-500">{new Date(order.createdAt).toLocaleDateString()}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className="text-xs font-semibold text-slate-900">{order.customerEmail}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className="text-xs font-bold text-indigo-600">€{parseFloat(order.totalAmount).toLocaleString()}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className="px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+                        Completo
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

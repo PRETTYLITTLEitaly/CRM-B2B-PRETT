@@ -11,3 +11,11 @@ server/.env
 client/dist
 .vscode
 .idea
+.npm-cache
+npm-cache
+tmp-npm
+api/.npm_cache
+**/node_modules
+**/.npm_cache
+scratch
+*.icloud
